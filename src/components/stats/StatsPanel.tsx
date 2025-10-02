@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 import type { MonthlyStats } from '../../types/lesson';
-import { TrendingUp, Clock, DollarSign, Users, BookOpen, CheckCircle } from 'lucide-react';
+import { TrendingUp, Clock, DollarSign, Users, BookOpen, CheckCircle, X } from 'lucide-react';
 
 interface StatsPanelProps {
   stats: MonthlyStats;
@@ -50,16 +50,16 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ stats, className }) => {
       icon: CheckCircle,
       label: '完成率',
       value: `${stats.completionRate}%`,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-50',
       trend: stats.completionRate >= 80 ? '↑' : '',
     },
     {
-      icon: TrendingUp,
-      label: '平均时薪',
-      value: `¥${stats.averageHourlyRate.toFixed(2)}`,
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
+      icon: X,
+      label: '最多取消',
+      value: stats.mostCancelledStudent || '无',
+      color: 'text-red-600',
+      bgColor: 'bg-red-50',
       trend: '',
     },
   ];
@@ -165,7 +165,7 @@ export const CompactStatsPanel: React.FC<StatsPanelProps> = ({ stats, className 
       icon: CheckCircle,
       label: '完成率',
       value: `${stats.completionRate}%`,
-      color: 'text-emerald-600',
+      color: 'text-yellow-600',
     },
   ];
 

@@ -26,29 +26,64 @@ interface LessonListProps {
   lessons: LessonRecord[];
   onEdit?: (lesson: LessonRecord) => void;
   onDelete?: (id: string) => void;
+  onComplete?: (id: string) => void;
   showFilters?: boolean;
   compact?: boolean;
+  externalStatusFilter?: LessonStatus | 'all';
 }
 
 export const LessonList: React.FC<LessonListProps> = ({
   lessons,
   onEdit,
   onDelete,
+  onComplete,
   showFilters = true,
-  compact = false
+  compact = false,
+  externalStatusFilter
 }) => {
-  const [statusFilter, setStatusFilter] = useState<LessonStatus | 'all'>('all');
+  const [internalStatusFilter, setInternalStatusFilter] = useState<LessonStatus | 'all'>('all');
   const [methodFilter, setMethodFilter] = useState<TeachingMethod | 'all'>('all');
   const [dateSort, setDateSort] = useState<'asc' | 'desc'>('desc');
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
 
+  // 使用外部筛选器状态（如果提供），否则使用内部状态
+  const statusFilter = externalStatusFilter !== undefined ? externalStatusFilter : internalStatusFilter;
+  const setStatusFilter = externalStatusFilter !== undefined ? () => {} : setInternalStatusFilter;
+
   const getStatusBadgeVariant = (status: LessonStatus) => {
     switch (status) {
       case 'completed': return 'default';
-      case 'planned': return 'secondary';
+      case 'planned': return 'outline';
       case 'cancelled': return 'destructive';
       default: return 'outline';
     }
+  };
+
+  const getStatusColorClasses = (status: LessonStatus) => {
+    switch (status) {
+      case 'completed': 
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'planned': 
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'cancelled': 
+        return 'bg-red-100 text-red-800 border-red-200';
+      default: 
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const canCompleteLesson = (lesson: LessonRecord) => {
+    // 只有计划中的课程才能被完成
+    if (lesson.status !== 'planned') return false;
+    
+    // 获取当前时间
+    const now = new Date();
+    
+    // 解析课程时间
+    const lessonDateTime = new Date(lesson.date + ' ' + lesson.startTime);
+    
+    // 课程时间必须早于或等于当前时间才能被完成
+    return lessonDateTime <= now;
   };
 
   const getStatusText = (status: LessonStatus) => {
@@ -98,6 +133,12 @@ export const LessonList: React.FC<LessonListProps> = ({
   const handleDelete = (id: string) => {
     if (onDelete && window.confirm('确定要删除这条课时记录吗？')) {
       onDelete(id);
+    }
+  };
+
+  const handleComplete = (id: string) => {
+    if (onComplete && window.confirm('确定要将这节课标记为已完成吗？')) {
+      onComplete(id);
     }
   };
 
@@ -171,7 +212,9 @@ export const LessonList: React.FC<LessonListProps> = ({
       {filteredLessons.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border">
           <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">暂无符合条件的课时记录</p>
+          <p className="text-gray-500">
+            {statusFilter === 'cancelled' ? '这一天没有取消的课程' : '暂无符合条件的课时记录'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -184,11 +227,14 @@ export const LessonList: React.FC<LessonListProps> = ({
               <div className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold text-gray-900 truncate">
                         {lesson.studentName}
                       </h3>
-                      <Badge variant={getStatusBadgeVariant(lesson.status)}>
+                      <Badge 
+                        variant={getStatusBadgeVariant(lesson.status)} 
+                        className={`text-xs ${getStatusColorClasses(lesson.status)}`}
+                      >
                         {getStatusText(lesson.status)}
                       </Badge>
                     </div>
@@ -217,14 +263,17 @@ export const LessonList: React.FC<LessonListProps> = ({
                       </span>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-2 ml-4">
+                {/* 操作按钮区域 */}
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-2">
                     {!compact && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => toggleExpanded(lesson.id)}
-                        className="p-1"
+                        className="p-1 h-7"
                       >
                         {expandedLesson === lesson.id ? (
                           <ChevronUp className="w-4 h-4" />
@@ -239,7 +288,7 @@ export const LessonList: React.FC<LessonListProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEdit(lesson)}
-                        className="p-1 text-blue-600 hover:text-blue-700"
+                        className="p-1 h-7 text-blue-600 hover:text-blue-700"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -250,12 +299,31 @@ export const LessonList: React.FC<LessonListProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(lesson.id)}
-                        className="p-1 text-red-600 hover:text-red-700"
+                        className="p-1 h-7 text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
+
+                  {/* 完课按钮 - 只对可以完成的课程显示 */}
+                  {onComplete && canCompleteLesson(lesson) && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleComplete(lesson.id)}
+                      className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                    >
+                      完课
+                    </Button>
+                  )}
+                  
+                  {/* 未来课程的提示 */}
+                  {onComplete && lesson.status === 'planned' && !canCompleteLesson(lesson) && (
+                    <span className="text-xs text-orange-500 bg-orange-50 px-2 py-1 rounded border border-orange-200">
+                      未到时间
+                    </span>
+                  )}
                 </div>
 
                 {/* 展开的详细信息 */}

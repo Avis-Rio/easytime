@@ -28,6 +28,22 @@ export const calculateMonthlyStats = (
   const taxDeduction = grossIncome * 0.1; // 默认10%税率
   const netIncome = grossIncome - taxDeduction;
 
+  // 计算最多取消的学生
+  const studentCancelledCount = new Map<string, number>();
+  cancelledLessons.forEach(lesson => {
+    const current = studentCancelledCount.get(lesson.studentName) || 0;
+    studentCancelledCount.set(lesson.studentName, current + 1);
+  });
+
+  let mostCancelledStudent: string | undefined;
+  let maxCancelled = 0;
+  studentCancelledCount.forEach((count, student) => {
+    if (count > maxCancelled) {
+      maxCancelled = count;
+      mostCancelledStudent = student;
+    }
+  });
+
   return {
     year,
     month,
@@ -44,7 +60,8 @@ export const calculateMonthlyStats = (
     taxDeduction: Math.round(taxDeduction * 100) / 100,
     netIncome: Math.round(netIncome * 100) / 100,
     onlineHours: Math.round(completedLessons.filter(l => l.teachingMethod === 'online').reduce((sum, l) => sum + l.duration, 0) * 100) / 100,
-    offlineHours: Math.round(completedLessons.filter(l => l.teachingMethod === 'offline').reduce((sum, l) => sum + l.duration, 0) * 100) / 100
+    offlineHours: Math.round(completedLessons.filter(l => l.teachingMethod === 'offline').reduce((sum, l) => sum + l.duration, 0) * 100) / 100,
+    mostCancelledStudent
   };
 };
 

@@ -11,9 +11,8 @@ const DropdownMenu = ({ children }: DropdownMenuProps) => {
   return <div className="relative">{children}</div>
 }
 
-const DropdownMenuTrigger = ({ children, asChild, ...props }: {
+const DropdownMenuTrigger = ({ children, ...props }: {
   children: React.ReactNode
-  asChild?: boolean
 } & React.HTMLAttributes<HTMLButtonElement>) => {
   return (
     <button {...props}>
@@ -22,7 +21,10 @@ const DropdownMenuTrigger = ({ children, asChild, ...props }: {
   )
 }
 
-const DropdownMenuContent = ({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
+const DropdownMenuContent = ({ className, children, ...props }: {
+  className?: string;
+  children: React.ReactNode;
+} & React.HTMLAttributes<HTMLDivElement>) => {
   return (
     <div 
       className={cn(

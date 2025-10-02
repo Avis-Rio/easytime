@@ -12,14 +12,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { LessonForm } from '@/components/forms/LessonForm';
-import type { LessonRecord } from '@/types/lesson';
+import type { LessonRecord, LessonStatus } from '@/types/lesson';
 
 
 export const CalendarPage: React.FC = () => {
   const { lessons, updateLesson, deleteLesson } = useLessonStore();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<LessonStatus | 'all'>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<LessonRecord | null>(null);
 
@@ -84,6 +84,16 @@ export const CalendarPage: React.FC = () => {
 
   const handleDelete = (id: string) => {
     deleteLesson(id);
+  };
+
+  const handleComplete = (id: string) => {
+    const lesson = lessons.find(l => l.id === id);
+    if (lesson) {
+      updateLesson(id, {
+        ...lesson,
+        status: 'completed'
+      });
+    }
   };
 
   const handleFormSubmit = (data: Omit<LessonRecord, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -206,8 +216,10 @@ export const CalendarPage: React.FC = () => {
                   lessons={selectedDateLessons}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onComplete={handleComplete}
                   showFilters={false}
                   compact={true}
+                  externalStatusFilter={filterStatus}
                 />
               </div>
             ) : (
@@ -238,8 +250,10 @@ export const CalendarPage: React.FC = () => {
                 lessons={monthlyLessons}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onComplete={handleComplete}
                 showFilters={false}
                 compact={true}
+                externalStatusFilter={filterStatus}
               />
             </div>
           ) : (

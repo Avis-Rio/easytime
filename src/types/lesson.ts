@@ -37,6 +37,7 @@ export interface MonthlyStats {
   netIncome: number;
   onlineHours: number;
   offlineHours: number;
+  mostCancelledStudent?: string; // 最多取消的学生名字
 }
 
 // 应用设置接口

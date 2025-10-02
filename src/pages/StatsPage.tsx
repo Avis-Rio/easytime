@@ -78,6 +78,22 @@ export const StatsPage: React.FC = () => {
     const taxDeduction = grossIncome * 0.1; // 默认税率10%
     const netIncome = grossIncome - taxDeduction;
 
+    // 计算最多取消的学生
+    const studentCancelledCount = new Map<string, number>();
+    cancelledLessons.forEach(lesson => {
+      const current = studentCancelledCount.get(lesson.studentName) || 0;
+      studentCancelledCount.set(lesson.studentName, current + 1);
+    });
+
+    let mostCancelledStudent: string | undefined;
+    let maxCancelled = 0;
+    studentCancelledCount.forEach((count, student) => {
+      if (count > maxCancelled) {
+        maxCancelled = count;
+        mostCancelledStudent = student;
+      }
+    });
+
     const currentDate = new Date();
     return {
       year: currentDate.getFullYear(),
@@ -95,7 +111,8 @@ export const StatsPage: React.FC = () => {
       taxDeduction,
       netIncome,
       onlineHours,
-      offlineHours
+      offlineHours,
+      mostCancelledStudent
     };
   };
 
@@ -244,11 +261,11 @@ export const StatsPage: React.FC = () => {
                 <div className="text-sm text-gray-500">总学生数</div>
               </div>
               <div className="bg-white rounded-lg border p-4 text-center">
-                <div className="w-8 h-8 text-green-600 mx-auto mb-2">💰</div>
+                <div className="w-8 h-8 text-red-600 mx-auto mb-2">❌</div>
                 <div className="text-2xl font-bold text-gray-900">
-                  ¥{Math.round(studentStats.reduce((sum, s) => sum + s.averageHourlyRate, 0) / studentStats.length || 0)}
+                  {monthlyStats.mostCancelledStudent || '无'}
                 </div>
-                <div className="text-sm text-gray-500">平均时薪</div>
+                <div className="text-sm text-gray-500">最多取消</div>
               </div>
             </div>
           </div>

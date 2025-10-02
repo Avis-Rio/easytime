@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { 
@@ -32,6 +32,50 @@ const navItems: NavItem[] = [
 export const BottomNavigation: React.FC = () => {
   const location = useLocation();
 
+  // 监听窗口大小变化，确保导航栏位置正确
+  useEffect(() => {
+    const handleResize = () => {
+      // 强制重绘导航栏，防止iOS Safari虚拟键盘影响
+      const navElement = document.querySelector('.bottom-navigation');
+      if (navElement) {
+        navElement.style.transform = 'translateZ(0)';
+        setTimeout(() => {
+          navElement.style.transform = '';
+        }, 0);
+      }
+    };
+
+    // 监听视觉视口变化（现代浏览器）
+    if ('visualViewport' in window) {
+      const handleVisualViewport = () => {
+        const navElement = document.querySelector('.bottom-navigation');
+        if (navElement && window.visualViewport) {
+          // 当视觉视口高度变化时，强制保持底部位置
+          navElement.style.bottom = '0px';
+          navElement.style.position = 'fixed';
+        }
+      };
+
+      window.visualViewport.addEventListener('resize', handleVisualViewport);
+      window.visualViewport.addEventListener('scroll', handleVisualViewport);
+
+      return () => {
+        window.visualViewport.removeEventListener('resize', handleVisualViewport);
+        window.visualViewport.removeEventListener('scroll', handleVisualViewport);
+      };
+    }
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('focusin', handleResize); // 输入框聚焦时
+    window.addEventListener('focusout', handleResize); // 输入框失焦时
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('focusin', handleResize);
+      window.removeEventListener('focusout', handleResize);
+    };
+  }, []);
+
   const isActive = (path: string) => {
     if (path === '/') {
       return location.pathname === '/';
@@ -41,11 +85,10 @@ export const BottomNavigation: React.FC = () => {
 
   return (
     <nav className={cn(
-      "fixed bottom-0 left-0 right-0 z-50",
+      "fixed bottom-0 left-0 right-0 z-50 bottom-navigation",
       "bg-white border-t border-gray-100",
       "flex items-center justify-around",
-      "h-16 px-2",
-      "safe-area-pb" // iOS安全区域适配
+      "h-16 px-2"
     )}>
       {navItems.map((item) => {
         const Icon = item.icon;
@@ -125,9 +168,9 @@ export const BottomNavigationSpacer: React.FC = () => {
  */
 export const BottomNavigationContainer: React.FC = () => {
   return (
-    <>
+    <div className="fixed bottom-0 left-0 right-0 z-50">
       <BottomNavigationSpacer />
       <BottomNavigation />
-    </>
+    </div>
   );
 };

@@ -65,10 +65,10 @@ export const HomePage: React.FC = () => {
 
   const getStatusColor = (status: LessonStatus) => {
     switch (status) {
-      case 'completed': return 'text-green-600 bg-green-50';
-      case 'planned': return 'text-blue-600 bg-blue-50';
-      case 'cancelled': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
+      case 'completed': return 'text-green-800 bg-green-100 border-green-200';
+      case 'planned': return 'text-blue-800 bg-blue-100 border-blue-200';
+      case 'cancelled': return 'text-red-800 bg-red-100 border-red-200';
+      default: return 'text-gray-800 bg-gray-100 border-gray-200';
     }
   };
 
@@ -164,7 +164,7 @@ export const HomePage: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-900">{lesson.studentName}</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lesson.status)}`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(lesson.status)}`}>
                           {getStatusText(lesson.status)}
                         </span>
                       </div>

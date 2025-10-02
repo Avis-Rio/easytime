@@ -18,8 +18,22 @@ export const formatTime = (timeString: string): string => {
 
 // 格式化时长显示
 export const formatDuration = (hours: number): string => {
+  // 确保输入是合理的小时数值
+  if (hours < 0) {
+    return '0小时';
+  }
+  
   const fullHours = Math.floor(hours);
   const minutes = Math.round((hours - fullHours) * 60);
+  
+  // 处理边界情况
+  if (fullHours === 0 && minutes === 0) {
+    return '0小时';
+  }
+  
+  if (fullHours === 0) {
+    return `${minutes}分钟`;
+  }
   
   if (minutes === 0) {
     return `${fullHours}小时`;

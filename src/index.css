@@ -90,6 +90,64 @@
   @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200;
 }
 
+/* iOS安全区域适配 */
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-pl {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.safe-area-pr {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* 确保底部导航栏始终固定在底部，不受滚动影响 */
+.bottom-navigation {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  transform: none !important;
+  z-index: 9999 !important;
+  /* iPhone底部安全区域适配 */
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  /* 防止虚拟键盘影响 */
+  height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* 防止iOS Safari的底部工具栏影响 */
+@supports (-webkit-touch-callout: none) {
+  .bottom-navigation {
+    position: fixed !important;
+    bottom: 0 !important;
+    /* iOS Safari特殊处理 */
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 20px) !important;
+  }
+}
+
+/* 防止虚拟键盘顶起底部导航栏 */
+@media (max-width: 768px) {
+  .bottom-navigation {
+    /* 使用visual viewport单位 */
+    bottom: 0vmax !important;
+    position: fixed !important;
+    /* 确保在视觉视口底部 */
+    transform: translateY(0) !important;
+  }
+  
+  /* 当虚拟键盘出现时保持位置 */
+  html[data-virtual-keyboard] .bottom-navigation {
+    position: fixed !important;
+    bottom: 0 !important;
+  }
+}
+
 .calendar-day {
   @apply w-10 h-10 flex items-center justify-center text-sm rounded-full;
 }

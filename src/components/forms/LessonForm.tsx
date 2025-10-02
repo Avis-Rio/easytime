@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { cn } from '../../lib/utils';
-import type { LessonRecord, LessonStatus, TeachingMethod, LessonFormData } from '../../types/lesson';
+import type { LessonRecord, LessonFormData } from '../../types/lesson';
 import { generateTimeOptions } from '../../utils/dateUtils';
 import { useLessonStore } from '../../stores/lessonStore';
 import { Calendar, Clock, User, BookOpen, DollarSign, MessageSquare } from 'lucide-react';
@@ -25,13 +25,13 @@ export const LessonForm: React.FC<LessonFormProps> = ({
   onCancel,
   className
 }) => {
-  const { settings } = useLessonStore();
+  const { settings, lessons } = useLessonStore();
   
-  // 表单状态
+  // 表单状态 - duration以小时为单位存储和显示
   const [formData, setFormData] = useState<LessonFormData>({
     date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
     startTime: initialData?.startTime || '09:00',
-    duration: initialData ? Math.round(initialData.duration * 60) : 60, // 将小时转换为分钟显示
+    duration: initialData?.duration || 1, // 直接使用小时单位，默认1小时
     studentName: initialData?.studentName || '',
     teachingMethod: initialData?.teachingMethod || 'online',
     status: initialData?.status || 'planned',
@@ -43,6 +43,51 @@ export const LessonForm: React.FC<LessonFormProps> = ({
 
   // 时间选项
   const timeOptions = useState(() => generateTimeOptions(15))[0];
+
+  // 计算结束时间
+  const calculateEndTime = (startTime: string, duration: number): string => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startMinutes = hours * 60 + minutes;
+    const endMinutes = startMinutes + (duration * 60);
+    
+    const endHours = Math.floor(endMinutes / 60);
+    const endMins = endMinutes % 60;
+    
+    return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+  };
+
+  // 检查时间冲突
+  const checkTimeConflict = (): string | null => {
+    const targetDate = formData.date;
+    const targetStartTime = formData.startTime;
+    const targetDuration = formData.duration;
+    const targetEndTime = calculateEndTime(targetStartTime, targetDuration);
+    const targetStudent = formData.studentName.trim();
+    
+    // 获取同一天的现有课程（排除当前正在编辑的课程）
+    const sameDayLessons = lessons.filter(lesson => {
+      if (initialData && lesson.id === initialData.id) return false; // 排除当前编辑的课程
+      return lesson.date === targetDate && lesson.status !== 'cancelled'; // 只检查未取消的课程
+    });
+
+    // 检查时间冲突
+    for (const lesson of sameDayLessons) {
+      const existingEndTime = calculateEndTime(lesson.startTime, lesson.duration);
+      
+      // 检查时间是否重叠
+      const isTimeOverlap = (
+        (targetStartTime >= lesson.startTime && targetStartTime < existingEndTime) ||
+        (targetEndTime > lesson.startTime && targetEndTime <= existingEndTime) ||
+        (targetStartTime <= lesson.startTime && targetEndTime >= existingEndTime)
+      );
+
+      if (isTimeOverlap) {
+        return `时间冲突：${lesson.studentName} ${lesson.startTime}-${existingEndTime}`;
+      }
+    }
+
+    return null;
+  };
 
   // 表单验证
   const validateForm = (): boolean => {
@@ -68,6 +113,14 @@ export const LessonForm: React.FC<LessonFormProps> = ({
       newErrors.hourlyRate = '课时费标准必须大于0';
     }
 
+    // 检查时间冲突
+    if (!newErrors.date && !newErrors.startTime && !newErrors.duration) {
+      const conflict = checkTimeConflict();
+      if (conflict) {
+        newErrors.startTime = conflict;
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -77,27 +130,23 @@ export const LessonForm: React.FC<LessonFormProps> = ({
     e.preventDefault();
     
     if (validateForm()) {
-      // 将分钟转换为小时再提交
-      const dataInHours = {
-        ...formData,
-        duration: formData.duration / 60
-      };
-      onSubmit(dataInHours);
+      // duration已经是小时单位，直接提交
+      onSubmit(formData);
     }
   };
 
   // 输入处理
-  const handleInputChange = (field: keyof LessonFormData, value: string | number | LessonStatus | TeachingMethod) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: string, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
     // 清除对应字段的错误
-    if ((errors as any)[field]) {
-      setErrors((prev: any) => ({ ...prev, [field]: undefined }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
 
   // 计算收入
   const calculateIncome = () => {
-    return Math.round(formData.hourlyRate * (formData.duration / 60));
+    return Math.round(formData.hourlyRate * formData.duration);
   };
 
   return (
@@ -156,7 +205,7 @@ export const LessonForm: React.FC<LessonFormProps> = ({
           <label className="text-sm font-medium text-gray-700">课时长度</label>
           <select
             value={formData.duration}
-            onChange={(e) => handleInputChange('duration', parseInt(e.target.value))}
+            onChange={(e) => handleInputChange('duration', parseFloat(e.target.value))}
             className={cn(
               "w-full px-3 py-3 border rounded-lg",
               "focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
@@ -165,11 +214,11 @@ export const LessonForm: React.FC<LessonFormProps> = ({
             )}
             required
           >
-            <option value={30}>30分钟</option>
-            <option value={45}>45分钟</option>
-            <option value={60}>1小时</option>
-            <option value={90}>1.5小时</option>
-            <option value={120}>2小时</option>
+            <option value={0.5}>30分钟</option>
+            <option value={0.75}>45分钟</option>
+            <option value={1}>1小时</option>
+            <option value={1.5}>1.5小时</option>
+            <option value={2}>2小时</option>
           </select>
           {errors.duration && (
             <p className="text-sm text-red-500">{errors.duration}</p>
@@ -291,7 +340,7 @@ export const LessonForm: React.FC<LessonFormProps> = ({
           </span>
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          {formData.duration}分钟 × ¥{formData.hourlyRate}/小时
+          {formData.duration}小时 × ¥{formData.hourlyRate}/小时
         </p>
       </div>
 
