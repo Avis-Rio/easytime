@@ -152,7 +152,7 @@ export const LessonList: React.FC<LessonListProps> = ({
       {showFilters && (
         <div className="flex flex-wrap gap-2 p-4 bg-white rounded-lg border">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger>
               <Button variant="outline" size="sm" className="flex items-center gap-2">
                 <Filter className="w-4 h-4" />
                 状态: {statusFilter === 'all' ? '全部' : getStatusText(statusFilter)}
@@ -176,7 +176,7 @@ export const LessonList: React.FC<LessonListProps> = ({
           </DropdownMenu>
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger>
               <Button variant="outline" size="sm" className="flex items-center gap-2">
                 {getMethodIcon(methodFilter === 'all' ? 'offline' : methodFilter)}
                 方式: {methodFilter === 'all' ? '全部' : getMethodText(methodFilter)}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 import type { MonthlyStats } from '../../types/lesson';
-import { TrendingUp, Clock, DollarSign, Users, BookOpen, CheckCircle, X } from 'lucide-react';
+import { Clock, DollarSign, Users, BookOpen, CheckCircle, X } from 'lucide-react';
 
 interface StatsPanelProps {
   stats: MonthlyStats;

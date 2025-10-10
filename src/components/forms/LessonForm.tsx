@@ -4,6 +4,7 @@ import { cn } from '../../lib/utils';
 import type { LessonRecord, LessonFormData } from '../../types/lesson';
 import { generateTimeOptions } from '../../utils/dateUtils';
 import { useLessonStore } from '../../stores/lessonStore';
+import { validateLessonForm } from '../../utils/validation';
 import { Calendar, Clock, User, BookOpen, DollarSign, MessageSquare } from 'lucide-react';
 
 interface LessonFormProps {
@@ -29,7 +30,7 @@ export const LessonForm: React.FC<LessonFormProps> = ({
   
   // 表单状态 - duration以小时为单位存储和显示
   const [formData, setFormData] = useState<LessonFormData>({
-    date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+    date: initialData?.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')),
     startTime: initialData?.startTime || '09:00',
     duration: initialData?.duration || 1, // 直接使用小时单位，默认1小时
     studentName: initialData?.studentName || '',
@@ -62,7 +63,7 @@ export const LessonForm: React.FC<LessonFormProps> = ({
     const targetStartTime = formData.startTime;
     const targetDuration = formData.duration;
     const targetEndTime = calculateEndTime(targetStartTime, targetDuration);
-    const targetStudent = formData.studentName.trim();
+    // const targetStudent = formData.studentName.trim();
     
     // 获取同一天的现有课程（排除当前正在编辑的课程）
     const sameDayLessons = lessons.filter(lesson => {
@@ -89,40 +90,23 @@ export const LessonForm: React.FC<LessonFormProps> = ({
     return null;
   };
 
-  // 表单验证
+  // 表单验证（使用增强的验证工具）
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.studentName.trim()) {
-      newErrors.studentName = '请输入学生姓名';
-    }
-
-    if (!formData.date) {
-      newErrors.date = '请选择日期';
-    }
-
-    if (!formData.startTime) {
-      newErrors.startTime = '请选择开始时间';
-    }
-
-    if (formData.duration <= 0) {
-      newErrors.duration = '课时长度必须大于0';
-    }
-
-    if (formData.hourlyRate <= 0) {
-      newErrors.hourlyRate = '课时费标准必须大于0';
-    }
-
+    // 使用统一的验证函数
+    const { isValid, errors: validationErrors } = validateLessonForm(formData);
+    
     // 检查时间冲突
-    if (!newErrors.date && !newErrors.startTime && !newErrors.duration) {
+    if (isValid) {
       const conflict = checkTimeConflict();
       if (conflict) {
-        newErrors.startTime = conflict;
+        validationErrors.startTime = conflict;
+        setErrors(validationErrors);
+        return false;
       }
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(validationErrors);
+    return isValid;
   };
 
   // 提交表单
@@ -140,7 +124,11 @@ export const LessonForm: React.FC<LessonFormProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
     // 清除对应字段的错误
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
   };
 

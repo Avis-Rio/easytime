@@ -482,3 +482,51 @@ EasyTime
 **代码变更文件**：
 - `src/components/forms/LessonForm.tsx` - 添加单位转换逻辑
 - `src/pages/HomePage.tsx` - 修复时长显示方式，添加formatDuration导入
+
+---
+
+## Release Note - 2025-10-10 「移动端测试修复完善版」
+
+### 概述
+- 本次版本聚焦移动端体验全面完善，修复若干 iOS Safari 相关问题，优化底部安全区适配与交互细节，并补充 PWA 基础配置与稳定性监控能力。
+
+### 🐛 修复的 Bug
+- iOS Safari 底部导航遮挡内容：为所有页面追加动态底部内边距，适配 env(safe-area-inset-bottom)
+- 部分页面触达区域不足：统一将主要按钮触控尺寸不小于 44px（通过样式与组件调整）
+- 表单重复提交边缘场景：改进提交流程与防抖处理（涉及表单与 store 交互）
+- 个别视图在小屏设备下文字截断：调整排版与断行策略
+
+### ♻️ 功能/体验优化
+- 首屏渲染时机优化，避免不必要的首次渲染计算（StatsPanel、列表区域）
+- 资源按需加载与图标精简，减小包体
+- 统一时间/时长展示入口，减少逻辑分散
+- 新增 ThemeToggle，便于暗/亮主题切换
+
+### 📱 移动端专项改进
+- 视口与缩放策略：确保包含 viewport-fit=cover，避免双击缩放带来的位移
+- 安全区（Safe Area）适配：统一通过内联 style 计算 paddingBottom
+- 触摸反馈优化：交互控件状态可见性提升，禁用选择与长按不必要行为
+- 软键盘遮挡处理：表单区滚动容器优化，输入时界面稳定
+
+### 🧩 PWA 与稳定性
+- 新增 public/manifest.json，补齐基础 PWA 配置
+- 引入 performanceMonitor 与 errorHandler，便于后续问题追踪
+- 补充 PWA 安装提示组件 PWAInstallPrompt（未强制启用）
+
+### 🗂 主要变更文件（节选）
+- 页面/布局：HomePage.tsx, LessonsPage.tsx, AddLessonPage.tsx, CalendarPage.tsx, StatsPage.tsx, SettingsPage.tsx, AppLayout.tsx
+- 组件：BottomNavigation.tsx, LessonForm.tsx, LessonList.tsx, StatsPanel.tsx, ThemeToggle.tsx, ErrorBoundary.tsx, PerformanceReport.tsx
+- 服务/工具：services/performanceMonitor.ts, services/excelExport.ts, utils/errorHandler.ts, utils/validation.ts
+- PWA：public/manifest.json
+- 其他：删除 src/lib/export.ts（无用导出）
+
+### 🔖 Git 标签
+- 名称：移动端测试修复完善版
+- 类型：注释标签（annotated tag）
+- 目的：标记移动端专项修复与完善的整合版本，便于回溯
+
+### ✅ 回归建议
+- iOS 15+ Safari：五大主页面底部内容可视性、表单输入与返回流程
+- 安卓 Chrome：滚动与触达区域，底部导航与沉浸式栏交互
+- PWA：安装与启动基本路径验证
+- 导出：月度导出在移动端触发与文件可用性

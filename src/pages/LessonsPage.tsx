@@ -3,6 +3,8 @@ import { useLessonStore } from '@/stores/lessonStore';
 import { LessonList } from '@/components/lessons/LessonList';
 import { LessonForm } from '@/components/forms/LessonForm';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { Plus } from 'lucide-react';
 import type { LessonRecord } from '@/types/lesson';
 import {
@@ -16,6 +18,15 @@ export const LessonsPage: React.FC = () => {
   const { lessons, updateLesson, deleteLesson } = useLessonStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<LessonRecord | null>(null);
+  
+  // 添加分页功能
+  const {
+    data: paginatedLessons,
+    page,
+    totalPages,
+    total,
+    goToPage
+  } = usePagination(lessons, 15); // 每页显示15条
 
   const handleEdit = (lesson: LessonRecord) => {
     setEditingLesson(lesson);
@@ -45,7 +56,7 @@ export const LessonsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: `calc(64px + env(safe-area-inset-bottom, 0px))` }}>
       {/* 顶部标题栏 */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4">
@@ -69,7 +80,7 @@ export const LessonsPage: React.FC = () => {
         {/* 统计摘要 */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white rounded-lg border p-3 text-center">
-            <div className="text-lg font-bold text-gray-900">{lessons.length}</div>
+            <div className="text-lg font-bold text-gray-900">{total}</div>
             <div className="text-xs text-gray-500">总课时</div>
           </div>
           <div className="bg-white rounded-lg border p-3 text-center">
@@ -88,12 +99,24 @@ export const LessonsPage: React.FC = () => {
 
         {/* 课时列表 */}
         <LessonList
-          lessons={lessons}
+          lessons={paginatedLessons}
           onEdit={handleEdit}
           onDelete={handleDelete}
           showFilters={true}
           compact={false}
         />
+        
+        {/* 分页组件 */}
+        {totalPages > 1 && (
+          <div className="mt-6">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              showPageNumbers={false}
+            />
+          </div>
+        )}
       </div>
 
       {/* 编辑表单对话框 */}

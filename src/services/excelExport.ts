@@ -268,3 +268,56 @@ const calculateLessonIncome = (lesson: LessonRecord): {
     netIncome: Math.round(netIncome * 100) / 100
   };
 };
+
+/**
+ * 导出所有课时记录到Excel（通用导出功能）
+ */
+export const exportToExcel = (lessons: LessonRecord[]): void => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  
+  exportMonthlyLessonsToExcel(lessons, year, month);
+};
+
+/**
+ * 导出课时记录到CSV
+ */
+export const exportToCSV = (lessons: LessonRecord[]): void => {
+  try {
+    const data = lessons.map((lesson, index) => ({
+      '序号': index + 1,
+      '日期': lesson.date,
+      '开始时间': lesson.startTime,
+      '时长': `${lesson.duration}小时`,
+      '学生姓名': lesson.studentName,
+      '教学方式': lesson.teachingMethod === 'online' ? '线上' : '线下',
+      '状态': getStatusText(lesson.status),
+      '时薪(元)': lesson.hourlyRate,
+      '收入(元)': lesson.status === 'completed' ? (lesson.hourlyRate * lesson.duration).toFixed(2) : '0.00',
+      '备注': lesson.notes || ''
+    }));
+
+    const csvContent = [
+      Object.keys(data[0]).join(','),
+      ...data.map(row => Object.values(row).join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `EasyTime_课时记录_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  } catch (error) {
+    console.error('导出CSV失败:', error);
+    throw new Error('导出失败，请重试');
+  }
+};

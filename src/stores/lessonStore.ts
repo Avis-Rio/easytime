@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { LessonRecord, AppSettings } from '@/types/lesson';
+import type { LessonRecord, AppSettings, MonthlyStats } from '@/types/lesson';
 import { v4 as uuidv4 } from 'uuid';
 
 interface LessonStore {
@@ -12,15 +12,7 @@ interface LessonStore {
   getLessonsByDate: (date: string) => LessonRecord[];
   getLessonsByMonth: (year: number, month: number) => LessonRecord[];
   getLessonsByStudent: (studentName: string) => LessonRecord[];
-  getMonthlyStats: (year: number, month: number) => {
-    totalLessons: number;
-    completedLessons: number;
-    plannedLessons: number;
-    cancelledLessons: number;
-    totalIncome: number;
-    totalHours: number;
-    uniqueStudents: number;
-  };
+  getMonthlyStats: (year: number, month: number) => MonthlyStats;
   updateSettings: (settings: Partial<AppSettings>) => void;
 }
 
@@ -88,22 +80,58 @@ export const useLessonStore = create<LessonStore>()(
       getMonthlyStats: (year, month) => {
         const monthLessons = get().getLessonsByMonth(year, month);
         const completedLessons = monthLessons.filter(l => l.status === 'completed');
+        const plannedLessons = monthLessons.filter(l => l.status === 'planned');
+        const cancelledLessons = monthLessons.filter(l => l.status === 'cancelled');
+        const onlineLessons = completedLessons.filter(l => l.teachingMethod === 'online');
+        const offlineLessons = completedLessons.filter(l => l.teachingMethod === 'offline');
         
-        const totalIncome = completedLessons.reduce((sum, lesson) => {
+        const grossIncome = completedLessons.reduce((sum, lesson) => {
           return sum + (lesson.hourlyRate * lesson.duration);
         }, 0);
 
+        const taxRate = get().settings.taxRate / 100; // 转换为小数
+        const taxDeduction = grossIncome * taxRate;
+        const netIncome = grossIncome - taxDeduction;
+
         const totalHours = completedLessons.reduce((sum, lesson) => sum + lesson.duration, 0);
+        const onlineHours = onlineLessons.reduce((sum, lesson) => sum + lesson.duration, 0);
+        const offlineHours = offlineLessons.reduce((sum, lesson) => sum + lesson.duration, 0);
         const uniqueStudents = new Set(monthLessons.map(l => l.studentName)).size;
 
+        // 计算最多取消的学生
+        const studentCancelledCount = new Map<string, number>();
+        monthLessons.filter(l => l.status === 'cancelled').forEach(lesson => {
+          const current = studentCancelledCount.get(lesson.studentName) || 0;
+          studentCancelledCount.set(lesson.studentName, current + 1);
+        });
+
+        let mostCancelledStudent: string | undefined;
+        let maxCancelled = 0;
+        studentCancelledCount.forEach((count, student) => {
+          if (count > maxCancelled) {
+            maxCancelled = count;
+            mostCancelledStudent = student;
+          }
+        });
+
         return {
+          year,
+          month,
           totalLessons: monthLessons.length,
           completedLessons: completedLessons.length,
-          plannedLessons: monthLessons.filter(l => l.status === 'planned').length,
-          cancelledLessons: monthLessons.filter(l => l.status === 'cancelled').length,
-          totalIncome,
-          totalHours,
-          uniqueStudents
+          plannedLessons: plannedLessons.length,
+          cancelledLessons: cancelledLessons.length,
+          totalIncome: Math.round(netIncome * 100) / 100,
+          totalHours: Math.round(totalHours * 100) / 100,
+          uniqueStudents,
+          completionRate: monthLessons.length > 0 ? Math.round((completedLessons.length / monthLessons.length) * 100) : 0,
+          averageHourlyRate: totalHours > 0 ? Math.round((netIncome / totalHours) * 100) / 100 : 0,
+          grossIncome: Math.round(grossIncome * 100) / 100,
+          taxDeduction: Math.round(taxDeduction * 100) / 100,
+          netIncome: Math.round(netIncome * 100) / 100,
+          onlineHours: Math.round(onlineHours * 100) / 100,
+          offlineHours: Math.round(offlineHours * 100) / 100,
+          mostCancelledStudent
         };
       },
 

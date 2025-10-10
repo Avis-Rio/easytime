@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useVisualViewport } from '@/hooks/useVisualViewport';
 import { 
   Home, 
   Calendar, 
@@ -26,55 +27,18 @@ const navItems: NavItem[] = [
 
 /**
  * 底部导航栏组件
- * 使用 Lucide 图标和 React Router 进行导航
- * 针对移动端触摸优化
+ * 
+ * iOS Safari 优化：
+ * 1. 使用 VisualViewport API 监听键盘事件
+ * 2. 自动适配安全区域（刘海屏、Home 指示条）
+ * 3. 硬件加速渲染，防止抖动
  */
 export const BottomNavigation: React.FC = () => {
   const location = useLocation();
-
-  // 监听窗口大小变化，确保导航栏位置正确
-  useEffect(() => {
-    const handleResize = () => {
-      // 强制重绘导航栏，防止iOS Safari虚拟键盘影响
-      const navElement = document.querySelector('.bottom-navigation');
-      if (navElement) {
-        navElement.style.transform = 'translateZ(0)';
-        setTimeout(() => {
-          navElement.style.transform = '';
-        }, 0);
-      }
-    };
-
-    // 监听视觉视口变化（现代浏览器）
-    if ('visualViewport' in window) {
-      const handleVisualViewport = () => {
-        const navElement = document.querySelector('.bottom-navigation');
-        if (navElement && window.visualViewport) {
-          // 当视觉视口高度变化时，强制保持底部位置
-          navElement.style.bottom = '0px';
-          navElement.style.position = 'fixed';
-        }
-      };
-
-      window.visualViewport.addEventListener('resize', handleVisualViewport);
-      window.visualViewport.addEventListener('scroll', handleVisualViewport);
-
-      return () => {
-        window.visualViewport.removeEventListener('resize', handleVisualViewport);
-        window.visualViewport.removeEventListener('scroll', handleVisualViewport);
-      };
-    }
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('focusin', handleResize); // 输入框聚焦时
-    window.addEventListener('focusout', handleResize); // 输入框失焦时
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('focusin', handleResize);
-      window.removeEventListener('focusout', handleResize);
-    };
-  }, []);
+  const bottomNavRef = useRef<HTMLElement>(null);
+  
+  // 应用 VisualViewport 监听，处理键盘弹出
+  useVisualViewport(bottomNavRef);
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -84,12 +48,23 @@ export const BottomNavigation: React.FC = () => {
   };
 
   return (
-    <nav className={cn(
-      "fixed bottom-0 left-0 right-0 z-50 bottom-navigation",
-      "bg-white border-t border-gray-100",
-      "flex items-center justify-around",
-      "h-16 px-2"
-    )}>
+    <nav 
+      ref={bottomNavRef}
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50",
+        "bg-white/95 border-t border-gray-100",
+        "flex items-center justify-around",
+        "px-2",
+        "backdrop-blur-md", // iOS 毛玻璃效果
+        "transition-transform duration-200 ease-out" // 平滑过渡
+      )}
+      style={{
+        height: `calc(64px + env(safe-area-inset-bottom, 0px))`,
+        paddingBottom: `env(safe-area-inset-bottom, 0px)`,
+        transform: 'translateZ(0)', // 启用硬件加速
+        willChange: 'transform', // 性能优化
+      }}
+    >
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = isActive(item.path);
@@ -157,20 +132,23 @@ export const BottomNavigation: React.FC = () => {
 /**
  * 底部占位组件
  * 用于在内容区域底部添加适当间距，避免被导航栏遮挡
+ * 
+ * 高度 = 导航栏高度 + 安全区域高度
  */
 export const BottomNavigationSpacer: React.FC = () => {
-  return <div className="h-16" />; // 与导航栏高度一致
+  return (
+    <div 
+      style={{
+        height: `calc(64px + env(safe-area-inset-bottom, 0px))`
+      }}
+    />
+  );
 };
 
 /**
  * 底部导航栏容器
- * 包含导航栏和占位组件
+ * 简化版本 - 直接返回导航栏组件
  */
 export const BottomNavigationContainer: React.FC = () => {
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
-      <BottomNavigationSpacer />
-      <BottomNavigation />
-    </div>
-  );
+  return <BottomNavigation />;
 };

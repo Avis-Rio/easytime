@@ -3,7 +3,7 @@ import { useLessonStore } from '@/stores/lessonStore';
 import { StatsPanel } from '@/components/stats/StatsPanel';
 import { Button } from '@/components/ui/button';
 import { Download, TrendingUp, Users, Calendar } from 'lucide-react';
-import { exportToExcel } from '@/lib/export';
+import { exportMonthlyLessonsToExcel } from '@/services/excelExport';
 import type { LessonRecord, MonthlyStats } from '@/types/lesson';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 
@@ -118,7 +118,17 @@ export const StatsPage: React.FC = () => {
 
   const handleExport = async () => {
     try {
-      await exportToExcel(lessons);
+      const year = selectedMonth.getFullYear();
+      const month = selectedMonth.getMonth() + 1;
+      
+      if (activeTab === 'monthly') {
+        exportMonthlyLessonsToExcel(lessons, year, month);
+      } else if (activeTab === 'yearly') {
+        exportMonthlyLessonsToExcel(lessons, year, month);
+      } else {
+        exportMonthlyLessonsToExcel(lessons, year, month);
+      }
+      
       alert('数据导出成功！');
     } catch (error) {
       console.error('导出失败:', error);
@@ -139,7 +149,7 @@ export const StatsPage: React.FC = () => {
   const studentStats = getStudentStats();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: `calc(64px + env(safe-area-inset-bottom, 0px))` }}>
       {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4">
