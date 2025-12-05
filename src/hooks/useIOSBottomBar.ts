@@ -1,4 +1,5 @@
-import { useEffect, useRef, RefObject } from 'react';
+import { useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
 
 /**
  * iOS Safari 底部固定栏优化 Hook
@@ -10,8 +11,8 @@ import { useEffect, useRef, RefObject } from 'react';
  * 
  * @returns bottomRef - 需要绑定到底部导航栏元素的 ref
  */
-export const useIOSBottomBar = (): RefObject<HTMLElement> => {
-  const bottomRef = useRef<HTMLElement>(null);
+export const useIOSBottomBar = (): RefObject<HTMLElement | null> => {
+  const bottomRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const bottomBar = bottomRef.current;
@@ -91,4 +92,3 @@ export const getSafeAreaInsetBottom = (): number => {
   
   return 0;
 };
-

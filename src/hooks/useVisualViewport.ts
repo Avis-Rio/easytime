@@ -1,4 +1,5 @@
-import { useEffect, RefObject } from 'react';
+import { useEffect } from 'react';
+import type { RefObject, MutableRefObject } from 'react';
 
 /**
  * iOS VisualViewport Hook
@@ -9,7 +10,9 @@ import { useEffect, RefObject } from 'react';
  * 2. 当键盘弹出时，visualViewport 高度变小
  * 3. 动态调整底栏位置，使其始终贴齐可视区底部
  */
-export const useVisualViewport = (elementRef: RefObject<HTMLElement>) => {
+export const useVisualViewport = (
+  elementRef: RefObject<HTMLElement | null> | MutableRefObject<HTMLElement | null>
+) => {
   useEffect(() => {
     const element = elementRef.current;
     if (!element) return;
@@ -43,7 +46,7 @@ export const useVisualViewport = (elementRef: RefObject<HTMLElement>) => {
         element.style.transform = `translateY(${bottomPosition - window.innerHeight}px)`;
         
         // 调试日志（生产环境可删除）
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env && import.meta.env.DEV) {
           console.log('[VisualViewport]', {
             viewportHeight,
             offsetTop,

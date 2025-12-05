@@ -35,7 +35,7 @@ const navItems: NavItem[] = [
  */
 export const BottomNavigation: React.FC = () => {
   const location = useLocation();
-  const bottomNavRef = useRef<HTMLElement>(null);
+  const bottomNavRef = useRef<HTMLElement | null>(null);
   
   // 应用 VisualViewport 监听，处理键盘弹出
   useVisualViewport(bottomNavRef);
