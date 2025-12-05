@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.13",
     "@types/uuid": "^10.0.0",
