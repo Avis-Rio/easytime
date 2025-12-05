@@ -110,7 +110,7 @@ export const CalendarPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: `calc(64px + env(safe-area-inset-bottom, 0px))` }}>
       {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4">
@@ -173,7 +173,7 @@ export const CalendarPage: React.FC = () => {
             ].map(({ key, label, color }) => (
               <button
                 key={key}
-                onClick={() => setFilterStatus(key)}
+                onClick={() => setFilterStatus(key as LessonStatus | 'all')}
                 className={`px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   filterStatus === key
                     ? 'bg-blue-600 text-white'

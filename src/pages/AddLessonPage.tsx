@@ -31,7 +31,7 @@ export const AddLessonPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: `calc(64px + env(safe-area-inset-bottom, 0px))` }}>
       {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4">

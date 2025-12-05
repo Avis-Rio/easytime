@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useLessonStore } from '@/stores/lessonStore';
 import { StatsPanel } from '@/components/stats/StatsPanel';
 import { Button } from '@/components/ui/button';
-import { Download, TrendingUp, Users, Calendar } from 'lucide-react';
-import { exportToExcel } from '@/lib/export';
+import { Download, TrendingUp, Users, Calendar, FileText } from 'lucide-react';
+import { exportMonthlyLessonsToExcel, exportConfirmationSheet } from '@/services/excelExport';
 import type { LessonRecord, MonthlyStats } from '@/types/lesson';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 
@@ -118,11 +118,35 @@ export const StatsPage: React.FC = () => {
 
   const handleExport = async () => {
     try {
-      await exportToExcel(lessons);
+      const year = selectedMonth.getFullYear();
+      const month = selectedMonth.getMonth() + 1;
+      
+      if (activeTab === 'monthly') {
+        exportMonthlyLessonsToExcel(lessons, year, month);
+      } else if (activeTab === 'yearly') {
+        exportMonthlyLessonsToExcel(lessons, year, month);
+      } else {
+        exportMonthlyLessonsToExcel(lessons, year, month);
+      }
+      
       alert('数据导出成功！');
     } catch (error) {
       console.error('导出失败:', error);
       alert('数据导出失败，请重试');
+    }
+  };
+
+  const handleExportConfirmation = async () => {
+    try {
+      const year = selectedMonth.getFullYear();
+      const month = selectedMonth.getMonth() + 1;
+      
+      exportConfirmationSheet(lessons, year, month);
+      
+      alert('课时确认表导出成功！');
+    } catch (error) {
+      console.error('导出失败:', error);
+      alert('导出失败，请重试');
     }
   };
 
@@ -139,21 +163,32 @@ export const StatsPage: React.FC = () => {
   const studentStats = getStudentStats();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: `calc(64px + env(safe-area-inset-bottom, 0px))` }}>
       {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold text-gray-900">统计分析</h1>
-            <Button
-              onClick={handleExport}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              导出
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleExport}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                统计
+              </Button>
+              <Button
+                onClick={handleExportConfirmation}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                确认表
+              </Button>
+            </div>
           </div>
 
           {/* 标签页切换 */}

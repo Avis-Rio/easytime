@@ -54,9 +54,17 @@ export const calculateEndTime = (startTime: string, duration: number): string =>
   return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
 };
 
-// 获取当前日期（YYYY-MM-DD格式）
+// 将 Date 对象转换为 YYYY-MM-DD 格式（本地时间，避免时区问题）
+export const formatDateToString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// 获取当前日期（YYYY-MM-DD格式，使用本地时间）
 export const getCurrentDate = (): string => {
-  return format(new Date(), 'yyyy-MM-dd');
+  return formatDateToString(new Date());
 };
 
 // 获取当前时间（HH:mm格式）
@@ -76,11 +84,18 @@ export const isValidTime = (timeString: string): boolean => {
   return timeRegex.test(timeString);
 };
 
-// 生成时间选项
-export const generateTimeOptions = (interval: number = 15): string[] => {
+// 生成时间选项（支持设置间隔和开始/结束小时）
+export const generateTimeOptions = (
+  interval: number = 15,
+  startHour: number = 6,
+  endHour: number = 22
+): string[] => {
   const options: string[] = [];
-  for (let hour = 6; hour <= 22; hour++) {
-    for (let minute = 0; minute < 60; minute += interval) {
+  const safeInterval = Math.max(1, Math.min(60, interval));
+  const start = Math.max(0, Math.min(23, startHour));
+  const end = Math.max(start, Math.min(23, endHour));
+  for (let hour = start; hour <= end; hour++) {
+    for (let minute = 0; minute < 60; minute += safeInterval) {
       const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
       options.push(time);
     }

@@ -68,8 +68,34 @@
   * {
     @apply border-[var(--border)];
   }
-  body {
+  
+  /* iOS Safari 优化：控制滚动容器，防止橡皮筋影响 fixed 元素 */
+  html, body {
     @apply bg-[var(--background)] text-[var(--foreground)];
+    height: 100%;
+    overflow: hidden; /* 禁止 body 滚动 */
+    position: fixed; /* iOS 防止地址栏影响 */
+    width: 100%;
+  }
+  
+  #root {
+    /* 使用动态视口单位（iOS 16+），降级到传统单位 */
+    height: 100vh;
+    height: 100dvh; /* 动态视口高度，跟随地址栏变化 */
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: auto; /* root 承担滚动 */
+    -webkit-overflow-scrolling: touch; /* iOS 平滑滚动 */
+    overscroll-behavior: contain; /* 防止边界回弹联动（iOS 15+） */
+    position: relative;
+  }
+  
+  /* 降级支持：不支持 dvh 时使用 fill-available */
+  @supports not (height: 100dvh) {
+    #root {
+      height: -webkit-fill-available;
+      min-height: -webkit-fill-available;
+    }
   }
 }
 
@@ -88,6 +114,21 @@
 
 .bottom-nav {
   @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200;
+  /* iOS Safari 固定优化 */
+  z-index: 1000;
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  backdrop-filter: saturate(180%) blur(10px);
+  /* 适配底部安全区 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* 确保在可视区域底部 */
+  transform: translateZ(0); /* 启用硬件加速 */
+  will-change: transform; /* 性能优化提示 */
+  /* 防止点击穿透 */
+  pointer-events: auto;
+  /* iOS 平滑滚动时保持固定 */
+  -webkit-transform: translateZ(0);
+  /* 防止地址栏影响 */
+  position: fixed;
 }
 
 /* iOS安全区域适配 */
@@ -107,46 +148,17 @@
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-/* 确保底部导航栏始终固定在底部，不受滚动影响 */
-.bottom-navigation {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  transform: none !important;
-  z-index: 9999 !important;
-  /* iPhone底部安全区域适配 */
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-  /* 防止虚拟键盘影响 */
-  height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+/* iOS 滚动容器优化 */
+.ios-scroll-container {
+  /* 平滑滚动 */
+  -webkit-overflow-scrolling: touch;
+  /* 防止边界回弹影响布局 */
+  overscroll-behavior: contain;
+  /* 硬件加速 */
+  transform: translateZ(0);
+  will-change: scroll-position;
 }
 
-/* 防止iOS Safari的底部工具栏影响 */
-@supports (-webkit-touch-callout: none) {
-  .bottom-navigation {
-    position: fixed !important;
-    bottom: 0 !important;
-    /* iOS Safari特殊处理 */
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 20px) !important;
-  }
-}
-
-/* 防止虚拟键盘顶起底部导航栏 */
-@media (max-width: 768px) {
-  .bottom-navigation {
-    /* 使用visual viewport单位 */
-    bottom: 0vmax !important;
-    position: fixed !important;
-    /* 确保在视觉视口底部 */
-    transform: translateY(0) !important;
-  }
-  
-  /* 当虚拟键盘出现时保持位置 */
-  html[data-virtual-keyboard] .bottom-navigation {
-    position: fixed !important;
-    bottom: 0 !important;
-  }
-}
 
 .calendar-day {
   @apply w-10 h-10 flex items-center justify-center text-sm rounded-full;

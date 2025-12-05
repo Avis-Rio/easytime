@@ -387,6 +387,12 @@ EasyTime
 - ✅ 确认货币单位为人民币（元）（2025-01-01）
 - ✅ 修复底部导航未显示问题（添加BottomNavigationContainer到App.tsx）（2025-01-01）
 - ✅ 修复时长显示单位错误：解决2小时显示为120小时的问题（2025-01-01）
+ - ✅ 修复开发环境“2 logs”错误（2025-12-03）：
+   - 现象：`[vite] failed to connect to websocket` 与 `Cannot read properties of undefined (reading 'send')`
+   - 根因：预览环境对 WebSocket/HMR 支持受限，Vite 客户端尝试建立 HMR 连接失败；同时 React 插件需要预编接入
+   - 方案：在 `vite.config.ts` 中设置 `server.resolve.dedupe` 保证 React 单实例；将 `server.hmr` 配置为 `{ overlay: false, clientPort: 5173 }`，避免覆盖层与错误重试导致的异常日志
+   - 验证：重启开发服务器后浏览器预览无错误日志，页面功能正常
+   - 影响：仅关闭错误覆盖层显示与不必要的客户端重试；HMR行为在当前环境下受限不影响核心功能
 
 ## Project Status Kanban
 

@@ -10,7 +10,9 @@ export interface LessonRecord {
   date: string; // YYYY-MM-DD format
   startTime: string; // HH:mm format
   duration: number; // in hours
+  studentId?: string; // external student number
   studentName: string;
+  school?: string; // 学校/校区（导出时线上自动加 -网课）
   teachingMethod: TeachingMethod;
   status: LessonStatus;
   hourlyRate: number; // per hour rate
@@ -67,7 +69,9 @@ export interface LessonFormData {
   date: string;
   startTime: string;
   duration: number;
+  studentId?: string;
   studentName: string;
+  school?: string;
   teachingMethod: TeachingMethod;
   status: LessonStatus;
   notes: string;

@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { cn } from '../../lib/utils';
 import { useLessonStore } from '../../stores/lessonStore';
-import { generateCalendarDays, getMonthName, isSameMonth, isSameDay } from '../../utils/dateUtils';
+import { generateCalendarDays, getMonthName, isSameMonth, isSameDay, formatDateToString } from '../../utils/dateUtils';
 import type { LessonRecord } from '../../types/lesson';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -10,6 +10,49 @@ interface CalendarProps {
   onDateSelect?: (date: Date) => void;
   className?: string;
 }
+
+// 优化：缓存日期到课时的映射
+const buildDateLessonsMap = (lessons: LessonRecord[], currentMonth: Date) => {
+  const map = new Map<string, LessonRecord[]>();
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  
+  // 只处理当月及前后一个月的数据
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month + 2, 0);
+  
+  lessons.forEach(lesson => {
+    const lessonDate = new Date(lesson.date);
+    if (lessonDate >= startDate && lessonDate <= endDate) {
+      const key = lesson.date;
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(lesson);
+    }
+  });
+  
+  return map;
+};
+
+// 优化：计算日期状态颜色（纯函数）
+const getDateStatusColor = (dayLessons: LessonRecord[]): string => {
+  if (dayLessons.length === 0) return '';
+
+  const hasCompleted = dayLessons.some(l => l.status === 'completed');
+  const hasPlanned = dayLessons.some(l => l.status === 'planned');
+  const hasCancelled = dayLessons.some(l => l.status === 'cancelled');
+
+  if (hasCompleted && !hasPlanned && !hasCancelled) {
+    return 'bg-green-100 text-green-800 border-green-200';
+  } else if (hasPlanned && !hasCompleted && !hasCancelled) {
+    return 'bg-blue-100 text-blue-800 border-blue-200';
+  } else if (hasCancelled && !hasCompleted && !hasPlanned) {
+    return 'bg-red-100 text-red-800 border-red-200';
+  } else {
+    return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+  }
+};
 
 /**
  * 日历组件
@@ -23,41 +66,24 @@ export const Calendar: React.FC<CalendarProps> = ({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { lessons } = useLessonStore();
 
-  // 生成日历天数
+  // 优化：生成日历天数
   const calendarDays = useMemo(() => 
     generateCalendarDays(currentMonth), 
     [currentMonth]
   );
 
-  // 获取指定日期的课时记录
-  const getLessonsForDate = (date: Date): LessonRecord[] => {
-    return lessons.filter(lesson => 
-      isSameDay(new Date(lesson.date), date)
-    );
-  };
+  // 优化：构建日期-课时映射，避免重复过滤
+  const dateLessonsMap = useMemo(() => 
+    buildDateLessonsMap(lessons, currentMonth),
+    [lessons, currentMonth]
+  );
 
-  // 获取日期状态颜色
-  const getDateStatusColor = (date: Date): string => {
-    const dayLessons = getLessonsForDate(date);
-    
-    if (dayLessons.length === 0) {
-      return '';
-    }
-
-    const hasCompleted = dayLessons.some(l => l.status === 'completed');
-    const hasPlanned = dayLessons.some(l => l.status === 'planned');
-    const hasCancelled = dayLessons.some(l => l.status === 'cancelled');
-
-    if (hasCompleted && !hasPlanned && !hasCancelled) {
-      return 'bg-green-100 text-green-800 border-green-200';
-    } else if (hasPlanned && !hasCompleted && !hasCancelled) {
-      return 'bg-blue-100 text-blue-800 border-blue-200';
-    } else if (hasCancelled && !hasCompleted && !hasPlanned) {
-      return 'bg-red-100 text-red-800 border-red-200';
-    } else {
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    }
-  };
+  // 优化：使用 useCallback 缓存获取课时的函数
+  const getLessonsForDate = useCallback((date: Date): LessonRecord[] => {
+    // 使用本地时间格式化，避免时区问题
+    const dateStr = formatDateToString(date);
+    return dateLessonsMap.get(dateStr) || [];
+  }, [dateLessonsMap]);
 
   // 导航到上一月
   const goToPrevMonth = () => {
@@ -125,63 +151,16 @@ export const Calendar: React.FC<CalendarProps> = ({
 
       {/* 日历网格 */}
       <div className="grid grid-cols-7 gap-0">
-        {calendarDays.map((date: Date, index: number) => {
-          const isCurrentMonth = isSameMonth(date, currentMonth);
-          const isToday = isSameDay(date, new Date());
-          const isSelected = selectedDate && isSameDay(date, selectedDate);
-          const statusColor = getDateStatusColor(date);
-          const dayLessons = getLessonsForDate(date);
-
-          return (
-            <button
-              key={index}
-              onClick={() => onDateSelect?.(date)}
-              className={cn(
-                "relative p-3 text-center transition-all duration-200",
-                "border-r border-b border-gray-50 last:border-r-0",
-                "hover:bg-gray-50 active:scale-95",
-                !isCurrentMonth && "text-gray-300",
-                isCurrentMonth && "text-gray-900",
-                isToday && "bg-blue-50 text-blue-600 font-semibold",
-                isSelected && "ring-2 ring-blue-500 ring-inset",
-                statusColor && "font-semibold",
-                dayLessons.length > 0 && "cursor-pointer"
-              )}
-              disabled={!isCurrentMonth}
-            >
-              <span className="text-sm">{date.getDate()}</span>
-              
-              {/* 课时状态指示器 */}
-              {dayLessons.length > 0 && (
-                <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex space-x-1">
-                  {dayLessons.slice(0, 3).map((lesson) => (
-                    <div
-                      key={lesson.id}
-                      className={cn(
-                        "w-1 h-1 rounded-full",
-                        lesson.status === 'completed' && "bg-green-500",
-                        lesson.status === 'planned' && "bg-blue-500",
-                        lesson.status === 'cancelled' && "bg-red-500"
-                      )}
-                    />
-                  ))}
-                  {dayLessons.length > 3 && (
-                    <div className="w-1 h-1 rounded-full bg-gray-400" />
-                  )}
-                </div>
-              )}
-
-              {/* 状态背景色 */}
-              {statusColor && (
-                <div className={cn(
-                  "absolute inset-1 rounded-md border",
-                  statusColor,
-                  "opacity-20"
-                )} />
-              )}
-            </button>
-          );
-        })}
+        {calendarDays.map((date: Date) => (
+          <CalendarDay
+            key={`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`}
+            date={date}
+            currentMonth={currentMonth}
+            selectedDate={selectedDate}
+            lessons={getLessonsForDate(date)}
+            onDateSelect={onDateSelect}
+          />
+        ))}
       </div>
 
       {/* 图例 */}
@@ -208,6 +187,79 @@ export const Calendar: React.FC<CalendarProps> = ({
     </div>
   );
 };
+
+// 优化：日历日期单元格组件（使用 React.memo 避免不必要的重渲染）
+interface CalendarDayProps {
+  date: Date;
+  currentMonth: Date;
+  selectedDate?: Date;
+  lessons: LessonRecord[];
+  onDateSelect?: (date: Date) => void;
+}
+
+const CalendarDay = React.memo<CalendarDayProps>(({ 
+  date, 
+  currentMonth, 
+  selectedDate, 
+  lessons,
+  onDateSelect 
+}) => {
+  const isCurrentMonth = isSameMonth(date, currentMonth);
+  const isToday = isSameDay(date, new Date());
+  const isSelected = selectedDate && isSameDay(date, selectedDate);
+  const statusColor = getDateStatusColor(lessons);
+
+  return (
+    <button
+      onClick={() => onDateSelect?.(date)}
+      className={cn(
+        "relative p-3 text-center transition-all duration-200",
+        "border-r border-b border-gray-50 last:border-r-0",
+        "hover:bg-gray-50 active:scale-95",
+        !isCurrentMonth && "text-gray-300",
+        isCurrentMonth && "text-gray-900",
+        isToday && "bg-blue-50 text-blue-600 font-semibold",
+        isSelected && "ring-2 ring-blue-500 ring-inset",
+        statusColor && "font-semibold",
+        lessons.length > 0 && "cursor-pointer"
+      )}
+      disabled={!isCurrentMonth}
+    >
+      <span className="text-sm">{date.getDate()}</span>
+      
+      {/* 课时状态指示器 */}
+      {lessons.length > 0 && (
+        <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex space-x-1">
+          {lessons.slice(0, 3).map((lesson) => (
+            <div
+              key={lesson.id}
+              className={cn(
+                "w-1 h-1 rounded-full",
+                lesson.status === 'completed' && "bg-green-500",
+                lesson.status === 'planned' && "bg-blue-500",
+                lesson.status === 'cancelled' && "bg-red-500"
+              )}
+            />
+          ))}
+          {lessons.length > 3 && (
+            <div className="w-1 h-1 rounded-full bg-gray-400" />
+          )}
+        </div>
+      )}
+
+      {/* 状态背景色 */}
+      {statusColor && (
+        <div className={cn(
+          "absolute inset-1 rounded-md border",
+          statusColor,
+          "opacity-20"
+        )} />
+      )}
+    </button>
+  );
+});
+
+CalendarDay.displayName = 'CalendarDay';
 
 /**
  * 紧凑版日历组件

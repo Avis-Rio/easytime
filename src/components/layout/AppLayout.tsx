@@ -9,13 +9,17 @@ interface AppLayoutProps {
 /**
  * 应用主布局组件
  * 提供统一的页面结构和样式
+ * 
+ * iOS Safari 优化：
+ * 1. 使用 flex 布局确保内容区域正确填充
+ * 2. 应用滚动容器优化类
  */
 export const AppLayout: React.FC<AppLayoutProps> = ({ children, className }) => {
   return (
     <div className={cn(
       "min-h-screen bg-white",
       "flex flex-col",
-      "safe-area-pb", // iOS安全区域适配
+      "ios-scroll-container", // iOS 滚动优化
       className
     )}>
       {children}
@@ -102,11 +106,20 @@ export const Content: React.FC<ContentProps> = ({
   withPadding = true 
 }) => {
   return (
-    <main className={cn(
-      "flex-1 overflow-y-auto",
-      withPadding && "px-4 py-4",
-      className
-    )}>
+    <main 
+      className={cn(
+        "flex-1",
+        "relative",
+        withPadding && "px-4 py-4",
+        // 底部导航栏占位，避免内容被遮挡
+        "pb-20",
+        className
+      )}
+      style={{
+        // 确保底部有足够的空间（导航栏高度 + 安全区域）
+        paddingBottom: `calc(64px + env(safe-area-inset-bottom, 0px))`
+      }}
+    >
       {children}
     </main>
   );

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { cn } from '../../lib/utils';
 import type { LessonRecord, LessonFormData } from '../../types/lesson';
 import { generateTimeOptions } from '../../utils/dateUtils';
 import { useLessonStore } from '../../stores/lessonStore';
+import { validateLessonForm } from '../../utils/validation';
 import { Calendar, Clock, User, BookOpen, DollarSign, MessageSquare } from 'lucide-react';
 
 interface LessonFormProps {
@@ -18,6 +19,8 @@ interface LessonFormProps {
  * 课时记录表单组件
  * 支持学生、时间、时长等信息的输入
  */
+type LessonFormViewData = LessonFormData & { endTime: string };
+
 export const LessonForm: React.FC<LessonFormProps> = ({
   initialData,
   selectedDate,
@@ -25,14 +28,25 @@ export const LessonForm: React.FC<LessonFormProps> = ({
   onCancel,
   className
 }) => {
-  const { settings, lessons } = useLessonStore();
+  const { settings, lessons, students } = useLessonStore();
   
   // 表单状态 - duration以小时为单位存储和显示
-  const [formData, setFormData] = useState<LessonFormData>({
-    date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+  const [formData, setFormData] = useState<LessonFormViewData>({
+    date: initialData?.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')),
     startTime: initialData?.startTime || '09:00',
-    duration: initialData?.duration || 1, // 直接使用小时单位，默认1小时
+    duration: initialData?.duration || 1, // 作为计算结果字段使用
+    endTime: initialData
+      ? (() => {
+          const [sh, sm] = (initialData.startTime || '09:00').split(':').map(Number);
+          const startMinutes = sh * 60 + sm;
+          const endMinutes = startMinutes + Math.max(0, (initialData.duration || 1)) * 60;
+          const eh = Math.floor(endMinutes / 60);
+          const em = endMinutes % 60;
+          return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
+        })()
+      : '10:00',
     studentName: initialData?.studentName || '',
+    school: initialData?.school || '中山公园',
     teachingMethod: initialData?.teachingMethod || 'online',
     status: initialData?.status || 'planned',
     notes: initialData?.notes || '',
@@ -41,28 +55,35 @@ export const LessonForm: React.FC<LessonFormProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // 时间选项
-  const timeOptions = useState(() => generateTimeOptions(15))[0];
+  // 时间选项（10分钟间隔，9:00–22:00）
+  const timeOptions = useMemo(() => generateTimeOptions(10, 9, 22), []);
+  const schoolOptions = ['中山公园', '虹桥', '古北'];
+  const endTimeOptions = useMemo(() => {
+    // 结束时间必须晚于开始时间
+    const [sh, sm] = formData.startTime.split(':').map(Number);
+    const startMinutes = sh * 60 + sm;
+    return timeOptions.filter(t => {
+      const [eh, em] = t.split(':').map(Number);
+      return (eh * 60 + em) > startMinutes;
+    });
+  }, [timeOptions, formData.startTime]);
 
   // 计算结束时间
-  const calculateEndTime = (startTime: string, duration: number): string => {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const startMinutes = hours * 60 + minutes;
-    const endMinutes = startMinutes + (duration * 60);
-    
-    const endHours = Math.floor(endMinutes / 60);
-    const endMins = endMinutes % 60;
-    
-    return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+  const calculateDurationFromRange = (startTime: string, endTime: string): number => {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+    const diff = Math.max(0, endMinutes - startMinutes);
+    return Math.round((diff / 60) * 100) / 100; // 保留两位小数
   };
 
   // 检查时间冲突
   const checkTimeConflict = (): string | null => {
     const targetDate = formData.date;
     const targetStartTime = formData.startTime;
-    const targetDuration = formData.duration;
-    const targetEndTime = calculateEndTime(targetStartTime, targetDuration);
-    const targetStudent = formData.studentName.trim();
+    const targetEndTime = formData.endTime || '10:00';
+    // const targetStudent = formData.studentName.trim();
     
     // 获取同一天的现有课程（排除当前正在编辑的课程）
     const sameDayLessons = lessons.filter(lesson => {
@@ -72,7 +93,14 @@ export const LessonForm: React.FC<LessonFormProps> = ({
 
     // 检查时间冲突
     for (const lesson of sameDayLessons) {
-      const existingEndTime = calculateEndTime(lesson.startTime, lesson.duration);
+      const existingEndTime = (() => {
+        const [sh, sm] = lesson.startTime.split(':').map(Number);
+        const startMinutes = sh * 60 + sm;
+        const endMinutes = startMinutes + lesson.duration * 60;
+        const eh = Math.floor(endMinutes / 60);
+        const em = endMinutes % 60;
+        return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
+      })();
       
       // 检查时间是否重叠
       const isTimeOverlap = (
@@ -89,40 +117,36 @@ export const LessonForm: React.FC<LessonFormProps> = ({
     return null;
   };
 
-  // 表单验证
+  // 表单验证（使用增强的验证工具）
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.studentName.trim()) {
-      newErrors.studentName = '请输入学生姓名';
+    // 使用统一的验证函数
+    const computedDuration = calculateDurationFromRange(formData.startTime, formData.endTime || '10:00');
+    const { isValid, errors: validationErrors } = validateLessonForm({
+      ...formData,
+      duration: computedDuration,
+    });
+    
+    // 结束时间必须大于开始时间
+    const [sh, sm] = formData.startTime.split(':').map(Number);
+    const [eh, em] = (formData.endTime || '10:00').split(':').map(Number);
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+    if (endMinutes <= startMinutes) {
+      validationErrors.endTime = '结束时间必须晚于开始时间';
     }
-
-    if (!formData.date) {
-      newErrors.date = '请选择日期';
-    }
-
-    if (!formData.startTime) {
-      newErrors.startTime = '请选择开始时间';
-    }
-
-    if (formData.duration <= 0) {
-      newErrors.duration = '课时长度必须大于0';
-    }
-
-    if (formData.hourlyRate <= 0) {
-      newErrors.hourlyRate = '课时费标准必须大于0';
-    }
-
+    
     // 检查时间冲突
-    if (!newErrors.date && !newErrors.startTime && !newErrors.duration) {
+    if (isValid) {
       const conflict = checkTimeConflict();
       if (conflict) {
-        newErrors.startTime = conflict;
+        validationErrors.startTime = conflict;
+        setErrors(validationErrors);
+        return false;
       }
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(validationErrors);
+    return isValid;
   };
 
   // 提交表单
@@ -130,8 +154,20 @@ export const LessonForm: React.FC<LessonFormProps> = ({
     e.preventDefault();
     
     if (validateForm()) {
-      // duration已经是小时单位，直接提交
-      onSubmit(formData);
+      const computedDuration = calculateDurationFromRange(formData.startTime, formData.endTime || '10:00');
+      const payload: LessonFormData = {
+        date: formData.date,
+        startTime: formData.startTime,
+        duration: computedDuration,
+        studentName: formData.studentName,
+        studentId: formData.studentId,
+        school: formData.school,
+        teachingMethod: formData.teachingMethod,
+        status: formData.status,
+        notes: formData.notes,
+        hourlyRate: formData.hourlyRate,
+      };
+      onSubmit(payload);
     }
   };
 
@@ -140,13 +176,18 @@ export const LessonForm: React.FC<LessonFormProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
     // 清除对应字段的错误
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
   };
 
-  // 计算收入
+  // 计算收入（根据开始/结束时间推导时长）
   const calculateIncome = () => {
-    return Math.round(formData.hourlyRate * formData.duration);
+    const d = calculateDurationFromRange(formData.startTime, formData.endTime || '10:00');
+    return Math.round(formData.hourlyRate * d);
   };
 
   return (
@@ -202,41 +243,44 @@ export const LessonForm: React.FC<LessonFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">课时长度</label>
+          <label className="text-sm font-medium text-gray-700">结束时间</label>
           <select
-            value={formData.duration}
-            onChange={(e) => handleInputChange('duration', parseFloat(e.target.value))}
+            value={formData.endTime}
+            onChange={(e) => handleInputChange('endTime', e.target.value)}
             className={cn(
               "w-full px-3 py-3 border rounded-lg",
               "focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
               "transition-colors",
-              errors.duration ? "border-red-500" : "border-gray-200"
+              errors.endTime ? "border-red-500" : "border-gray-200"
             )}
             required
           >
-            <option value={0.5}>30分钟</option>
-            <option value={0.75}>45分钟</option>
-            <option value={1}>1小时</option>
-            <option value={1.5}>1.5小时</option>
-            <option value={2}>2小时</option>
+            {endTimeOptions.map((time: string) => (
+              <option key={time} value={time}>{time}</option>
+            ))}
           </select>
-          {errors.duration && (
-            <p className="text-sm text-red-500">{errors.duration}</p>
+          {errors.endTime && (
+            <p className="text-sm text-red-500">{errors.endTime}</p>
           )}
         </div>
       </div>
 
-      {/* 学生姓名 */}
+      {/* 学生选择（下拉） */}
       <div className="space-y-2">
         <label className="flex items-center text-sm font-medium text-gray-700">
           <User className="w-4 h-4 mr-2" />
-          学生姓名
+          学生
         </label>
-        <input
-          type="text"
-          value={formData.studentName}
-          onChange={(e) => handleInputChange('studentName', e.target.value)}
-          placeholder="请输入学生姓名"
+        <select
+          value={formData.studentId || ''}
+          onChange={(e) => {
+            const sid = e.target.value; // external student number
+            const stu = students.find(s => s.studentId === sid);
+            handleInputChange('studentId', sid);
+            if (stu) {
+              handleInputChange('studentName', stu.name);
+            }
+          }}
           className={cn(
             "w-full px-3 py-3 border rounded-lg",
             "focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
@@ -244,10 +288,37 @@ export const LessonForm: React.FC<LessonFormProps> = ({
             errors.studentName ? "border-red-500" : "border-gray-200"
           )}
           required
-        />
+        >
+          <option value="">请选择学生</option>
+          {students.map(stu => (
+            <option key={stu.id} value={stu.studentId}>
+              {stu.studentId} - {stu.name}
+            </option>
+          ))}
+        </select>
         {errors.studentName && (
           <p className="text-sm text-red-500">{errors.studentName}</p>
         )}
+      </div>
+
+      {/* 学校选择 */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">学校</label>
+        <select
+          value={formData.school || ''}
+          onChange={(e) => handleInputChange('school', e.target.value)}
+          className={cn(
+            "w-full px-3 py-3 border rounded-lg",
+            "focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+            "transition-colors",
+            "border-gray-200"
+          )}
+          required
+        >
+          {schoolOptions.map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
       </div>
 
       {/* 教学方式 */}

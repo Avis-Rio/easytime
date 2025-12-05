@@ -48,7 +48,8 @@ export const HomePage: React.FC = () => {
   };
 
   const handleAddLesson = () => {
-    navigate('/add');
+    // 直接传递当天日期，表单默认显示今天
+    navigate('/add', { state: { selectedDate: new Date() } });
   };
 
   const handleDateSelect = (date: Date) => {
@@ -82,7 +83,7 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: `calc(64px + env(safe-area-inset-bottom, 0px))` }}>
       {/* 顶部标题栏 */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-md mx-auto px-4 py-4">
